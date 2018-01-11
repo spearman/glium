@@ -232,6 +232,85 @@ impl Context {
         Ok(context)
     }
 
+    /// Hack to build a glium context on another thread with provided OpenGL functions.
+    pub unsafe fn new_hack<B>(
+        backend: B,
+        gl: gl::Gl,
+        check_current_context: bool,
+        callback_behavior: DebugCallbackBehavior,
+    ) -> Result<Rc<Context>, IncompatibleOpenGl>
+        where B: Backend + 'static
+    {
+        backend.make_current();
+
+        let gl_state: RefCell<GlState> = RefCell::new(Default::default());
+
+        let version = version::get_gl_version(&gl);
+        let extensions = extensions::get_extensions(&gl, &version);
+        try!(check_gl_compatibility(&version, &extensions));
+
+        let capabilities = capabilities::get_capabilities(&gl, &version, &extensions);
+        let report_debug_output_errors = Cell::new(true);
+
+        let vertex_array_objects = vertex_array_object::VertexAttributesSystem::new();
+        let framebuffer_objects = fbo::FramebuffersContainer::new();
+        let samplers = RefCell::new({
+            let mut map = HashMap::with_hasher(Default::default());
+            map.reserve(16);
+            map
+        });
+        let resident_texture_handles = RefCell::new(Vec::new());
+        let resident_image_handles = RefCell::new(Vec::new());
+
+        let (debug_callback, synchronous) = match callback_behavior {
+            DebugCallbackBehavior::Ignore => (None, false),
+            DebugCallbackBehavior::DebugMessageOnError => {
+                (Some(Box::new(default_debug_callback) as debug::DebugCallback), true)
+            },
+            DebugCallbackBehavior::PrintAll => {
+                (Some(Box::new(printall_debug_callback) as debug::DebugCallback), false)
+            },
+            DebugCallbackBehavior::Custom { callback, synchronous } => {
+                (Some(callback), synchronous)
+            },
+        };
+
+        let context = Rc::new(Context {
+            gl: gl,
+            state: gl_state,
+            version: version,
+            extensions: extensions,
+            capabilities: capabilities,
+            debug_callback: debug_callback,
+            report_debug_output_errors: report_debug_output_errors,
+            backend: RefCell::new(Box::new(backend)),
+            check_current_context: check_current_context,
+            framebuffer_objects: Some(framebuffer_objects),
+            vertex_array_objects: vertex_array_objects,
+            samplers: samplers,
+            resident_texture_handles: resident_texture_handles,
+            resident_image_handles: resident_image_handles,
+        });
+
+        if context.debug_callback.is_some() {
+            init_debug_callback(&context, synchronous);
+        }
+
+        // making sure that an error wasn't triggered during initialization
+        {
+            let mut ctxt = context.make_current();
+            if ::get_gl_error(&mut ctxt).is_some() {
+                println!("glium has triggered an OpenGL error during initialization. Please report \
+                          this error: https://github.com/tomaka/glium/issues");
+            }
+            /*assert!(::get_gl_error(&mut ctxt).is_none(),
+                    "glium has triggered an OpenGL error during initialization. Please report \
+                     this error: https://github.com/tomaka/glium/issues");*/
+        }
+
+        Ok(context)
+    }
+
     /// Calls `get_framebuffer_dimensions` on the backend object stored by this context.
     #[inline]
     pub fn get_framebuffer_dimensions(&self) -> (u32, u32) {
