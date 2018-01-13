@@ -39,7 +39,7 @@ optional = true
 
 [dependencies]
 backtrace = "0.3.2"
-lazy_static = "0.2"
+lazy_static = "1.0"
 smallvec = "0.4.2"
 fnv = "1.0.5"
 
