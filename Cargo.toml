@@ -20,6 +20,7 @@ keywords = ["opengl", "gamedev"]
 categories = ["api-bindings", "rendering::graphics-api"]
 documentation = "https://docs.rs/glium"
 repository = "https://github.com/glium/glium"
+readme = "README.md"
 license = "Apache-2.0"
 build = "build/main.rs"
 exclude = ["doc", ".travis.yml", "circle.yml"]
@@ -42,15 +43,15 @@ optional = true
 [dependencies]
 backtrace = "0.3.2"
 lazy_static = "1.0"
-smallvec = "0.6.0"
+smallvec = "0.6"
 fnv = "1.0.5"
 
 [build-dependencies]
 gl_generator = "0.8"
 
 [dev-dependencies]
-cgmath = "0.15"
+cgmath = "0.16"
 genmesh = "0.5"
-image = "0.16"
+image = "0.18"
 obj = { version = "0.8", features = ["genmesh"] }
-rand = "0.3"
+rand = "0.4"
