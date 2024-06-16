@@ -19,11 +19,11 @@ use std::os::raw::c_void;
 use crate::CapabilitiesSource;
 use crate::SwapBuffersError;
 
-use crate::context::Capabilities;
-use crate::context::ExtensionsList;
 use crate::version::Version;
 
+pub use crate::context::Capabilities;
 pub use crate::context::Context;
+pub use crate::context::ExtensionsList;
 pub use crate::context::ReleaseBehavior;
 
 #[cfg(feature = "glutin")]

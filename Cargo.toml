@@ -34,7 +34,7 @@ vk_interop = [] # used for texture import from Vulkan
 
 [dependencies.glutin]
 version = "0.29"
-features = []
+default-features = false
 optional = true
 
 [dependencies]
