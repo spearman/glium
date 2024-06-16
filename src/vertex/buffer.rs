@@ -73,7 +73,7 @@ pub struct VertexBuffer<T> where T: Copy {
 /// Represents a slice of a `VertexBuffer`.
 pub struct VertexBufferSlice<'b, T> where T: Copy {
     buffer: BufferSlice<'b, [T]>,
-    bindings: &'b VertexFormat,
+    bindings: VertexFormat,
 }
 
 impl<'b, T: 'b> VertexBufferSlice<'b, T> where T: Copy + Content {
@@ -94,7 +94,7 @@ impl<'b, T: 'b> VertexBufferSlice<'b, T> where T: Copy + Content {
             return Err(InstancingNotSupported);
         }
 
-        Ok(PerInstance(self.buffer.as_slice_any(), &self.bindings))
+        Ok(PerInstance(self.buffer.as_slice_any(), self.bindings))
     }
 }
 
@@ -117,8 +117,8 @@ impl<T> VertexBuffer<T> where T: Vertex {
     /// }
     ///
     /// implement_vertex!(Vertex, position, texcoords);
-    ///
-    /// # fn example(display: glium::Display) {
+    /// # use glutin::surface::{ResizeableSurface, SurfaceTypeTrait};
+    /// # fn example<T>(display: glium::Display<T>) where T: SurfaceTypeTrait + ResizeableSurface {
     /// let vertex_buffer = glium::VertexBuffer::new(&display, &[
     ///     Vertex { position: [0.0,  0.0, 0.0], texcoords: [0.0, 1.0] },
     ///     Vertex { position: [5.0, -3.0, 2.0], texcoords: [1.0, 0.0] },
@@ -234,19 +234,20 @@ impl<T> VertexBuffer<T> where T: Copy {
     /// # Example
     ///
     /// ```no_run
-    /// # fn example(display: glium::Display) {
+    /// # use glutin::surface::{ResizeableSurface, SurfaceTypeTrait};
+    /// # fn example<T>(display: glium::Display<T>) where T: SurfaceTypeTrait + ResizeableSurface {
     /// use std::borrow::Cow;
     ///
-    /// let bindings = Cow::Owned(vec![(
-    ///         Cow::Borrowed("position"), 0,
+    /// const BINDINGS: glium::vertex::VertexFormat = &[(
+    ///         Cow::Borrowed("position"), 0, -1,
     ///         glium::vertex::AttributeType::F32F32,
     ///         false,
     ///     ), (
-    ///         Cow::Borrowed("color"), 2 * ::std::mem::size_of::<f32>(),
+    ///         Cow::Borrowed("color"), 2 * ::std::mem::size_of::<f32>(), -1,
     ///         glium::vertex::AttributeType::F32,
     ///         false,
     ///     ),
-    /// ]);
+    /// ];
     ///
     /// let data = vec![
     ///     1.0, -0.3, 409.0,
@@ -254,7 +255,7 @@ impl<T> VertexBuffer<T> where T: Copy {
     /// ];
     ///
     /// let vertex_buffer = unsafe {
-    ///     glium::VertexBuffer::new_raw(&display, &data, bindings, 3 * ::std::mem::size_of::<f32>())
+    ///     glium::VertexBuffer::new_raw(&display, &data, BINDINGS, 3 * ::std::mem::size_of::<f32>())
     /// };
     /// # }
     /// ```
@@ -302,7 +303,7 @@ impl<T> VertexBuffer<T> where T: Copy {
 
         Some(VertexBufferSlice {
             buffer: slice,
-            bindings: &self.bindings,
+            bindings: self.bindings,
         })
     }
 
@@ -328,7 +329,7 @@ impl<T> VertexBuffer<T> where T: Copy {
             return Err(InstancingNotSupported);
         }
 
-        Ok(PerInstance(self.buffer.as_slice_any(), &self.bindings))
+        Ok(PerInstance(self.buffer.as_slice_any(), self.bindings))
     }
 }
 
@@ -397,7 +398,7 @@ impl<'a, T> From<&'a mut VertexBuffer<T>> for BufferMutSlice<'a, [T]> where T: C
 impl<'a, T> From<&'a VertexBuffer<T>> for VerticesSource<'a> where T: Copy {
     #[inline]
     fn from(this: &VertexBuffer<T>) -> VerticesSource<'_> {
-        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), &this.bindings, false)
+        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), this.bindings, false)
     }
 }
 
@@ -427,7 +428,7 @@ impl<'a, T> From<VertexBufferSlice<'a, T>> for BufferSlice<'a, [T]> where T: Cop
 impl<'a, T> From<VertexBufferSlice<'a, T>> for VerticesSource<'a> where T: Copy {
     #[inline]
     fn from(this: VertexBufferSlice<'a, T>) -> VerticesSource<'a> {
-        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), &this.bindings, false)
+        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), this.bindings, false)
     }
 }
 
@@ -485,7 +486,7 @@ impl VertexBufferAny {
             return Err(InstancingNotSupported);
         }
 
-        Ok(PerInstance(self.buffer.as_slice_any(), &self.bindings))
+        Ok(PerInstance(self.buffer.as_slice_any(), self.bindings))
     }
 }
 
@@ -523,7 +524,7 @@ impl DerefMut for VertexBufferAny {
 impl<'a> From<&'a VertexBufferAny> for VerticesSource<'a> {
     #[inline]
     fn from(this :&VertexBufferAny) -> VerticesSource<'_> {
-        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), &this.bindings, false)
+        VerticesSource::VertexBuffer(this.buffer.as_slice_any(), this.bindings, false)
     }
 }
 

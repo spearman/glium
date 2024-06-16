@@ -1034,13 +1034,13 @@ pub enum CompressedFormat {
     /// BPTC format with three components (no alpha) represented as unsigned floats.
     BptcUnsignedFloat3,
 
-    /// S3TC DXT1 without alpha, see https://www.opengl.org/wiki/S3_Texture_Compression.
+    /// S3TC DXT1 without alpha, see <https://www.opengl.org/wiki/S3_Texture_Compression>.
     S3tcDxt1NoAlpha,
-    /// S3TC DXT1 with 1-bit alpha, see https://www.opengl.org/wiki/S3_Texture_Compression.
+    /// S3TC DXT1 with 1-bit alpha, see <https://www.opengl.org/wiki/S3_Texture_Compression>.
     S3tcDxt1Alpha,
-    /// S3TC DXT3, see https://www.opengl.org/wiki/S3_Texture_Compression.
+    /// S3TC DXT3, see <https://www.opengl.org/wiki/S3_Texture_Compression>.
     S3tcDxt3Alpha,
-    /// S3TC DXT5, see https://www.opengl.org/wiki/S3_Texture_Compression.
+    /// S3TC DXT5, see <https://www.opengl.org/wiki/S3_Texture_Compression>.
     S3tcDxt5Alpha,
 }
 
@@ -1418,17 +1418,17 @@ impl TextureFormat {
     /// Returns a list of all the possible values of this enumeration.
     #[inline]
     pub fn get_formats_list() -> Vec<TextureFormat> {
-        // TODO: this function looks ugly
-        UncompressedFloatFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        UncompressedIntFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        UncompressedUintFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        SrgbFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        CompressedFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        CompressedSrgbFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        DepthFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        StencilFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).chain(
-        DepthStencilFormat::get_formats_list().into_iter().map(|f| f.to_texture_format())))))))))
-        .collect()
+        // Chaining so many iterators can blow up the stack on some platforms
+        let mut result: Vec<_> = UncompressedFloatFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()).collect();
+        result.extend(UncompressedIntFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(UncompressedUintFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(SrgbFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(CompressedFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(CompressedSrgbFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(DepthFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(StencilFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result.extend(DepthStencilFormat::get_formats_list().into_iter().map(|f| f.to_texture_format()));
+        result
     }
 
     /// Returns true if this format is supported by the backend for textures.

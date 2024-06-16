@@ -32,7 +32,8 @@ Once you have a struct that implements the `Vertex` trait, you can build an arra
 upload it to the video memory by creating a `VertexBuffer`.
 
 ```no_run
-# fn example(display: glium::Display) {
+# use glutin::surface::{ResizeableSurface, SurfaceTypeTrait};
+# fn example<T>(display: glium::Display<T>) where T: SurfaceTypeTrait + ResizeableSurface {
 # #[derive(Copy, Clone)]
 # struct MyVertex {
 #     position: [f32; 3],
@@ -75,8 +76,10 @@ Each source can be:
 
 ```no_run
 # use glium::Surface;
-# fn example<V: glium::vertex::Vertex>(display: glium::Display, program: glium::program::Program,
-#            vertex_buffer: glium::vertex::VertexBuffer<V>, vertex_buffer2: glium::vertex::VertexBuffer<V>) {
+# use glutin::surface::{ResizeableSurface, SurfaceTypeTrait};
+# fn example<T, V>(display: glium::Display<T>, program: glium::program::Program,
+#            vertex_buffer: glium::vertex::VertexBuffer<V>, vertex_buffer2: glium::vertex::VertexBuffer<V>)
+#     where T: SurfaceTypeTrait + ResizeableSurface, V: glium::vertex::Vertex {
 # let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 # let uniforms = glium::uniforms::EmptyUniforms;
 # let mut frame = display.draw();
@@ -152,7 +155,7 @@ pub enum VerticesSource<'a> {
     ///
     /// The third parameter tells whether or not this buffer is "per instance" (true) or
     /// "per vertex" (false).
-    VertexBuffer(BufferAnySlice<'a>, &'a VertexFormat, bool),
+    VertexBuffer(BufferAnySlice<'a>, VertexFormat, bool),
 
     /// A marker indicating a "phantom list of attributes".
     Marker {
@@ -191,7 +194,7 @@ impl<'a> From<EmptyInstanceAttributes> for VerticesSource<'a> {
 }
 
 /// Marker that instructs glium that the buffer is to be used per instance.
-pub struct PerInstance<'a>(BufferAnySlice<'a>, &'a VertexFormat);
+pub struct PerInstance<'a>(BufferAnySlice<'a>, VertexFormat);
 
 impl<'a> From<PerInstance<'a>> for VerticesSource<'a> {
     #[inline]
@@ -302,8 +305,14 @@ pub trait Vertex: Copy + Sized {
 
 /// Trait for types that can be used as vertex attributes.
 pub unsafe trait Attribute: Sized {
+    /// The type of data.
+    const TYPE: AttributeType;
+
+    #[inline]
     /// Get the type of data.
-    fn get_type() -> AttributeType;
+    fn get_type() -> AttributeType {
+        Self::TYPE
+    }
 
     /// Returns true if the backend supports this type of attribute.
     #[inline]

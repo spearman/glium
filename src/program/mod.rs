@@ -57,10 +57,7 @@ pub fn is_subroutine_supported<C: ?Sized>(ctxt: &C) -> bool where C: Capabilitie
 
 // Some shader compilers have race-condition issues, so we lock this mutex
 // in the GL thread every time we compile a shader or link a program.
-// TODO: replace by a StaticMutex
-lazy_static! {
-    static ref COMPILER_GLOBAL_LOCK: Mutex<()> = Mutex::new(());
-}
+static COMPILER_GLOBAL_LOCK: Mutex<()> = Mutex::new(());
 
 /// Used in ProgramCreationError::CompilationError to explain which shader stage failed compilation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -262,8 +259,8 @@ pub enum ProgramCreationInput<'a> {
         /// `None`, then you won't be able to use transform feedback.
         transform_feedback_varyings: Option<(Vec<String>, TransformFeedbackMode)>,
 
-        /// Whether the fragment shader outputs colors in `sRGB` or `RGB`. This is false by default,
-        /// meaning that the program outputs `RGB`.
+        /// Whether the fragment shader outputs colors in `sRGB` or `RGB`. This is true by default,
+        /// meaning that the program is responsible for outputting correct `sRGB` values.
         ///
         /// If this is false, then `GL_FRAMEBUFFER_SRGB` will be enabled when this program is used
         /// (if it is supported).
@@ -278,7 +275,7 @@ pub enum ProgramCreationInput<'a> {
         /// The data.
         data: Binary,
 
-        /// See `SourceCode::outputs_srgb`.
+        /// See [`ProgramCreationInput::SourceCode::outputs_srgb`].
         outputs_srgb: bool,
 
         /// Whether the shader uses point size.
@@ -313,7 +310,7 @@ pub struct SpirvProgram<'a> {
     /// `None`, then you won't be able to use transform feedback.
     pub transform_feedback_varyings: Option<(Vec<String>, TransformFeedbackMode)>,
 
-    /// See `SourceCode::outputs_srgb`.
+    /// See [`ProgramCreationInput::SourceCode::outputs_srgb`].
     pub outputs_srgb: bool,
 
     /// Whether the shader uses point size.
@@ -333,7 +330,7 @@ impl<'a> SpirvProgram<'a> {
             tessellation_evaluation_shader: None,
             geometry_shader: None,
             transform_feedback_varyings: None,
-            outputs_srgb: false,
+            outputs_srgb: true,
             uses_point_size: false,
         }
     }
@@ -416,7 +413,7 @@ impl<'a> From<SourceCode<'a>> for ProgramCreationInput<'a> {
             geometry_shader,
             fragment_shader,
             transform_feedback_varyings: None,
-            outputs_srgb: false,
+            outputs_srgb: true,
             uses_point_size: false,
         }
     }
@@ -436,7 +433,7 @@ impl<'a> From<Binary> for ProgramCreationInput<'a> {
     fn from(binary: Binary) -> ProgramCreationInput<'a> {
         ProgramCreationInput::Binary {
             data: binary,
-            outputs_srgb: false,
+            outputs_srgb: true,
             uses_point_size: false,
         }
     }

@@ -4,27 +4,21 @@ Easy-to-use, high-level, OpenGL3+ wrapper.
 Glium is based on glutin - a cross-platform crate for building an OpenGL window and handling
 application events.
 
-Glium provides a [**Display**](`Display`) which extends the [**glutin::WindowedContext**](`glutin::WindowedContext`) with a high-level, safe API.
+Glium provides a [`Display`] which uses `glutin` for the Window and its associated GL Context.
 
 # Initialization
 
-The initialisation of a glium display occurs in several steps.
+The initialisation of a simple glium display occurs in two steps.
 
 ```no_run
 extern crate glium;
+extern crate winit;
 
 fn main() {
-    // 1. The **winit::EventsLoop** for handling events.
-    let mut events_loop = glium::glutin::event_loop::EventLoop::new();
-    // 2. Parameters for building the Window.
-    let wb = glium::glutin::window::WindowBuilder::new()
-        .with_inner_size(glium::glutin::dpi::LogicalSize::new(1024.0, 768.0))
-        .with_title("Hello world");
-    // 3. Parameters for building the OpenGL context.
-    let cb = glium::glutin::ContextBuilder::new();
-    // 4. Build the Display with the given window and OpenGL context parameters and register the
-    //    window with the events_loop.
-    let display = glium::Display::new(wb, cb, &events_loop).unwrap();
+    // 1. The **winit::EventLoop** for handling events.
+    let event_loop = winit::event_loop::EventLoopBuilder::new().build().unwrap();
+    // 2. Create a glutin context and glium Display
+    let (window, display) = glium::backend::glutin::SimpleWindowBuilder::new().build(&event_loop);
 }
 ```
 
@@ -39,7 +33,7 @@ domains such as events handling.
 
 # Overview
 
-OpenGL is similar to a drawing software: you draw something, then draw over it, then over it
+OpenGL is similar to drawing software: you draw something, then draw over it, then over it
 again, etc. until you are satisfied of the result.
 
 Once you have a `display`, you can call `let mut frame = display.draw();` to start drawing. This
@@ -112,15 +106,12 @@ result to the user.
     clippy::wrong_self_convention,
 )]
 
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(feature = "glutin")]
 pub use crate::backend::glutin::glutin;
-pub use crate::context::{Profile, UuidError};
+pub use crate::context::{Capabilities, ExtensionsList, Profile, UuidError};
 pub use crate::draw_parameters::{Blend, BlendingFunction, LinearBlendingFactor, BackfaceCullingMode};
 pub use crate::draw_parameters::{Depth, DepthTest, PolygonMode, DrawParameters, StencilTest, StencilOperation};
-pub use crate::draw_parameters::{Smooth};
+pub use crate::draw_parameters::Smooth;
 pub use crate::index::IndexBuffer;
 pub use crate::vertex::{VertexBuffer, Vertex, VertexFormat};
 pub use crate::program::{Program, ProgramCreationError};
@@ -185,8 +176,7 @@ pub use memoffset::offset_of as __glium_offset_of;
 /// your program.
 #[cfg(feature = "glutin")]
 pub use crate::backend::glutin::Display;
-#[cfg(feature = "glutin")]
-pub use crate::backend::glutin::headless::Headless as HeadlessRenderer;
+
 use crate::uniforms::MagnifySamplerFilter;
 
 /// Trait for objects that describe the capabilities of an OpenGL backend.
@@ -791,12 +781,12 @@ pub trait Surface {
     fn clear(&mut self, rect: Option<&Rect>, color: Option<(f32, f32, f32, f32)>, color_srgb: bool,
              depth: Option<f32>, stencil: Option<i32>);
 
-    /// Clears the color attachment of the target.
+    /// Clears the color attachment of the target. The color is converted to sRGB when the target has sRGB format.
     fn clear_color(&mut self, red: f32, green: f32, blue: f32, alpha: f32) {
         self.clear(None, Some((red, green, blue, alpha)), false, None, None);
     }
 
-    /// Clears the color attachment of the target. The color is in sRGB format.
+    /// Clears the color attachment of the target. The color is in sRGB format and is not converted in the target.
     fn clear_color_srgb(&mut self, red: f32, green: f32, blue: f32, alpha: f32) {
         self.clear(None, Some((red, green, blue, alpha)), true, None, None);
     }
@@ -1085,6 +1075,9 @@ pub enum DrawError {
     /// Restarting indices (multiple objects per draw call) is not supported by the backend.
     FixedIndexRestartingNotSupported,
 
+    /// Changing the clip volume definition (origin and depth mode) is not supported by the backend.
+    ClipControlNotSupported,
+
     /// Tried to enable a clip plane that does not exist.
     ClipPlaneIndexOutOfBounds,
 
@@ -1159,6 +1152,8 @@ impl fmt::Display for DrawError {
                 "One the blending parameters is not supported by the backend",
             FixedIndexRestartingNotSupported =>
                 "Restarting indices (multiple objects per draw call) is not supported by the backend",
+            ClipControlNotSupported =>
+                "Changing the clip volume definition (origin and depth mode) is not supported by the backend",
             ClipPlaneIndexOutOfBounds =>
                 "Tried to enable a clip plane that does not exist.",
             InsufficientImageUnits =>
