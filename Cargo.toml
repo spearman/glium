@@ -1,6 +1,6 @@
 [package]
 name = "glium"
-version = "0.34.0"
+version = "0.36.0"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 description = """
 Elegant and safe OpenGL wrapper.
@@ -35,25 +35,25 @@ simple_window_builder = ["glutin", "glutin-winit", "winit", "raw-window-handle"]
 x11 = ["glutin_backend", "simple_window_builder", "glutin/glx", "winit/x11", "glutin-winit/glx"]
 
 [dependencies.glutin]
-version = "0.31"
+version = "0.32"
 features = []
 optional = true
 default-features = false
 
 [dependencies.glutin-winit]
-version = "0.4"
+version = "0.5"
 features = []
 optional = true
 default-features = false
 
 [dependencies.winit]
-version = "0.29"
-features = ["rwh_06"]
+version = "0.30"
+features = []
 optional = true
 default-features = false
 
 [dependencies.raw-window-handle]
-version = "0.5"
+version = "0.6"
 features = []
 optional = true
 default-features = false
@@ -71,13 +71,13 @@ gl_generator = "0.14"
 ouroboros = "0.18"
 cgmath = "0.18"
 genmesh = "0.6"
-image = "0.24"
+image = "0.25"
 obj = { version = "0.10", features = ["genmesh"] }
 rand = "0.8"
 libc = "0.2.62"
-winit = "0.29"
-raw-window-handle = "0.5"
-glutin-winit = "0.4"
+winit = "0.30"
+raw-window-handle = "0.6"
+glutin-winit = "0.5"
 takeable-option = "0.5"
 
 [package.metadata.docs.rs]

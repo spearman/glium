@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use glium::{Surface, Display};
 use glutin::surface::WindowSurface;
 use support::{ApplicationContext, State};
-use winit::{window::WindowId, event_loop::EventLoopBuilder};
+use glium::winit::{window::WindowId, event_loop::EventLoop};
 
 mod support;
 
@@ -35,37 +35,38 @@ impl ApplicationContext for Application {
 }
 
 fn main() {
-    let event_loop = EventLoopBuilder::new()
+    let event_loop = EventLoop::builder()
         .build()
         .expect("event loop building");
     // To simplify things we use a single type for both the main and sub windows,
     // since we can easily distinguish them by their id.
     let mut windows: HashMap<WindowId, State<Application>> = HashMap::new();
 
+    #[allow(deprecated)]
     event_loop.run(move |event, window_target| {
         match event {
             // The Resumed/Suspended events are mostly for Android compatiblity since the context can get lost there at any point.
             // For convenience's sake the Resumed event is also delivered on other platforms on program startup.
-            winit::event::Event::Resumed => {
+            glium::winit::event::Event::Resumed => {
                 // On startup we create the main window and insert it into the HashMap just like subsequent sub windows.
                 let window:State<Application> = State::new(window_target, true);
                 windows.insert(window.window.id(), window);
             },
-            winit::event::Event::Suspended => {
+            glium::winit::event::Event::Suspended => {
                 windows.clear();
             },
-            winit::event::Event::WindowEvent { event, window_id, .. } => {
+            glium::winit::event::Event::WindowEvent { event, window_id, .. } => {
                 if let Some(state) = windows.get_mut(&window_id) {
                     match event {
-                        winit::event::WindowEvent::MouseInput {
-                            state: winit::event::ElementState::Released,
-                            button: winit::event::MouseButton::Left,
+                        glium::winit::event::WindowEvent::MouseInput {
+                            state: glium::winit::event::ElementState::Released,
+                            button: glium::winit::event::MouseButton::Left,
                             ..
                         } => {
                             // This is the main part, where we actually create the new window, enumerate it and
                             // insert it into our HashMap
                             if state.context.id == 1 {
-                                let mut window:State<Application> = State::new(window_target, true);
+                                let mut window: State<Application> = State::new(window_target, true);
                                 window.context.id = windows.len() as i32 + 1;
                                 let title = format!("Window #{}", window.context.id);
                                 window.window.set_title(&title);
@@ -74,11 +75,11 @@ fn main() {
                                 windows.remove(&window_id);
                             }
                         },
-                        winit::event::WindowEvent::RedrawRequested => {
+                        glium::winit::event::WindowEvent::RedrawRequested => {
                             state.context.update();
                             state.context.draw_frame(&state.display);
                         }
-                        winit::event::WindowEvent::CloseRequested => {
+                        glium::winit::event::WindowEvent::CloseRequested => {
                             if state.context.id == 1 {
                                 window_target.exit();
                             } else {
@@ -87,7 +88,7 @@ fn main() {
                         },
                         // These two aren't necessary for this particular example, but forgetting especially the Resized
                         // event could lead to stretched images being rendered if you decide to render something more interesting based on this example.
-                        winit::event::WindowEvent::Resized(new_size) => {
+                        glium::winit::event::WindowEvent::Resized(new_size) => {
                             state.display.resize(new_size.into());
                         },
                         ev => {

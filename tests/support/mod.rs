@@ -15,12 +15,11 @@ use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
 use glutin_winit::DisplayBuilder;
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use winit::event::Event;
-use winit::event_loop::{EventLoopBuilder, EventLoopProxy};
-use winit::window::{Window, WindowBuilder, WindowId};
+use raw_window_handle::{HasWindowHandle, WindowHandle, RawWindowHandle};
+use glium::winit::event::Event;
+use glium::winit::event_loop::{EventLoop, EventLoopProxy};
+use glium::winit::window::Window;
 
-use std::collections::HashMap;
 use std::env;
 use std::num::NonZeroU32;
 use std::sync::{mpsc::Receiver, Mutex, Once, RwLock};
@@ -31,42 +30,44 @@ use std::thread;
 
 // There is a Wayland version of this extension trait but the X11 version also works on Wayland
 #[cfg(unix)]
-use winit::platform::x11::EventLoopBuilderExtX11;
+use glium::winit::platform::x11::EventLoopBuilderExtX11;
 #[cfg(windows)]
-use winit::platform::windows::EventLoopBuilderExtWindows;
+use glium::winit::platform::windows::EventLoopBuilderExtWindows;
 
 // Thread communication
-static mut EVENT_LOOP_PROXY: RwLock<Option<EventLoopProxy<()>>> = RwLock::new(None);
-static mut WINDOW_RECEIVER: Mutex<Option<Receiver<(HandleOrWindow, Config)>>> = Mutex::new(None);
+static EVENT_LOOP_PROXY: RwLock<Option<EventLoopProxy<()>>> = RwLock::new(None);
+static WINDOW_RECEIVER: Mutex<Option<Receiver<(HandleOrWindow, Config)>>> = Mutex::new(None);
 
 // Initialization
-static mut INIT_EVENT_LOOP: Once = Once::new();
-static mut SEND_PROXY: Once = Once::new();
+static INIT_EVENT_LOOP: Once = Once::new();
+static SEND_PROXY: Once = Once::new();
 
 #[derive(Debug)]
 enum HandleOrWindow {
-    SendHandle(RawWindowHandle),
+    SendHandle(WindowHandle<'static>),
     RefWindow(&'static Window),
 }
 
 impl From<&'static Window> for HandleOrWindow {
     fn from(window: &'static Window) -> Self {
-        let raw_window_handle = window.raw_window_handle();
+        let window_handle = window.window_handle().unwrap();
 
-        match raw_window_handle {
+        match window_handle.as_raw() {
             RawWindowHandle::Xlib(_) |
             RawWindowHandle::Xcb(_) |
-            // n.b. `Window` is `!Send` and `!Sync` for wasm32
-            RawWindowHandle::Web(_) |
-            RawWindowHandle::Drm(_)
-                => HandleOrWindow::SendHandle(raw_window_handle),
+            RawWindowHandle::Drm(_) |
+            RawWindowHandle::Win32(_) |
+            RawWindowHandle::Web(_)
+                => HandleOrWindow::SendHandle(window_handle),
             RawWindowHandle::UiKit(_) |
             RawWindowHandle::AppKit(_) |
             RawWindowHandle::Orbital(_) |
+            RawWindowHandle::OhosNdk(_) |
             RawWindowHandle::Wayland(_) |
             RawWindowHandle::Gbm(_) |
-            RawWindowHandle::Win32(_) |
             RawWindowHandle::WinRt(_) |
+            RawWindowHandle::WebCanvas(_) |
+            RawWindowHandle::WebOffscreenCanvas(_) |
             RawWindowHandle::AndroidNdk(_) |
             RawWindowHandle::Haiku(_)
                 => HandleOrWindow::RefWindow(window),
@@ -78,10 +79,11 @@ impl From<&'static Window> for HandleOrWindow {
 
 impl From<HandleOrWindow> for RawWindowHandle {
     fn from(handle: HandleOrWindow) -> Self {
-        match handle {
+        let handle = match handle {
             HandleOrWindow::SendHandle(handle) => handle,
-            HandleOrWindow::RefWindow(window) => window.raw_window_handle(),
-        }
+            HandleOrWindow::RefWindow(window) => window.window_handle().unwrap(),
+        };
+        handle.as_raw()
     }
 }
 
@@ -99,45 +101,34 @@ unsafe fn initialize_event_loop() {
         let builder = thread::Builder::new().name("event_loop".into());
         builder
             .spawn(|| {
-                // Scoping the static mut here as it is only static for the `Window` references to bypass the borrow checker
-                // The choice to use static references simplifies the combined platform solution
-                static mut WINDOWS: Option<HashMap<WindowId, Window>> = None;
-                // safety: initialize before (exclusive) use in event loop
-                WINDOWS = Some(HashMap::new());
-
                 let event_loop_res = if cfg!(unix) || cfg!(windows) {
-                    EventLoopBuilder::new().with_any_thread(true).build()
+                    EventLoop::builder().with_any_thread(true).build()
                 } else {
-                    EventLoopBuilder::new().build()
+                    EventLoop::builder().build()
                 };
                 let event_loop = event_loop_res.expect("event loop building");
                 let proxy = event_loop.create_proxy();
 
+                #[allow(deprecated)]
                 event_loop.run(move |event, window_target| {
                     match event {
                         Event::UserEvent(_) => {
-                            let window_builder = WindowBuilder::new().with_visible(false);
-
+                            let window_attributes = Window::default_attributes().with_visible(false);
                             let config_template_builder = ConfigTemplateBuilder::new();
                             let display_builder =
-                                DisplayBuilder::new().with_window_builder(Some(window_builder));
+                                DisplayBuilder::new().with_window_attributes(Some(window_attributes));
                             let (window, gl_config) = display_builder
-                                .build(&window_target, config_template_builder, |mut configs| {
+                                .build(window_target, config_template_builder, |mut configs| {
                                     // Just use the first configuration since we don't have any special preferences here
                                     configs.next().unwrap()
                                 })
                                 .unwrap();
 
-                            let window = window.unwrap();
-                            let key = window.id();
+                            // Leak the window object to obtain a static reference
+                            let boxed_window = Box::new(window.unwrap());
+                            let window = Box::leak(boxed_window);
 
-                            // SAFETY
-                            // The event loop is a single thread
-                            // The `HashMap` only grows so references to its values stay valid
-                            WINDOWS.as_mut().unwrap().insert(key, window);
-                            let window = &WINDOWS.as_ref().unwrap()[&key];
-
-                            sender.send((window.into(), gl_config)).unwrap();
+                            sender.send(((&*window).into(), gl_config)).unwrap();
                         }
                         _ => {
                             // Send event loop proxy ASAP
@@ -170,20 +161,17 @@ pub fn build_display() -> Display<WindowSurface> {
     unsafe { initialize_event_loop(); }
 
     // Tell event loop to create a window and config for creating a display
-    unsafe {
-        EVENT_LOOP_PROXY
-            .read().unwrap()
-            .as_ref().unwrap()
-            .send_event(()).unwrap();
-    }
+    EVENT_LOOP_PROXY
+        .read().unwrap()
+        .as_ref().unwrap()
+        .send_event(()).unwrap();
 
     // Receive said window and config one thread at a time
-    let (handle_or_window, gl_config) = unsafe {
+    let (handle_or_window, gl_config) =
         WINDOW_RECEIVER
             .lock().unwrap()
             .as_ref().unwrap()
-            .recv().unwrap()
-    };
+            .recv().unwrap();
 
     // Then the configuration which decides which OpenGL version we'll end up using, here we just use the default which is currently 3.3 core
     // When this fails we'll try and create an ES context, this is mainly used on mobile devices or various ARM SBC's
@@ -220,8 +208,8 @@ pub fn rebuild_display(_display: &glium::Display<WindowSurface>) {
     todo!();
     /*
     let version = parse_version();
-    let event_loop = winit::event_loop::EventLoop::new();
-    let wb = winit::window::WindowBuilder::new().with_visible(false);
+    let event_loop = glium::winit::event_loop::EventLoop::new();
+    let wb = glium::winit::window::WindowBuilder::new().with_visible(false);
     let cb = glutin::ContextBuilder::new()
         .with_gl_debug_flag(true)
         .with_gl(version);
