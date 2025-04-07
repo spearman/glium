@@ -32,7 +32,7 @@ glutin_backend = ["glutin"]
 unstable = [] # used for benchmarks
 vk_interop = [] # used for texture import from Vulkan
 simple_window_builder = ["glutin", "glutin-winit", "winit", "raw-window-handle"] # used in the tutorial
-x11 = ["glutin_backend", "simple_window_builder", "glutin/glx", "winit/x11", "glutin-winit/glx"]
+x11 = ["glutin_backend", "simple_window_builder", "glutin/egl", "winit/x11", "glutin-winit/egl"]
 windows = ["glutin_backend", "simple_window_builder", "glutin/wgl", "glutin-winit/wgl"]
 
 [dependencies.glutin]
