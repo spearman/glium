@@ -1,8 +1,9 @@
 [package]
 name = "glium-spearman"
-version = "0.36.0"
+version = "0.36.0-spearman.1"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 description = """
+[Fork without default glutin features]
 Elegant and safe OpenGL wrapper.
 
 Glium is an intermediate layer between OpenGL and your application. You still need to manually handle
