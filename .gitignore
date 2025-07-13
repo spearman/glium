@@ -2,3 +2,4 @@
 /Cargo.lock
 /book/_book
 /.vscode
+rust-analyzer.log
