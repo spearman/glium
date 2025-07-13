@@ -1,5 +1,5 @@
 [package]
-name = "glium"
+name = "glium-spearman"
 version = "0.36.0"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 description = """
@@ -26,6 +26,9 @@ build = "build/main.rs"
 exclude = ["doc"]
 edition = "2021"
 
+[lib]
+name = "glium"
+
 [features]
 default = ["glutin_backend", "simple_window_builder", "glutin", "winit", "glutin-winit"]
 glutin_backend = ["glutin"]
@@ -49,7 +52,7 @@ default-features = false
 
 [dependencies.winit]
 version = "0.30"
-features = ["rwh_06"]
+features = []
 optional = true
 default-features = false
 
